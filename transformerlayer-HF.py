@@ -442,14 +442,14 @@ params = SimpleNamespace(
     model_name = "Hugging Face Transformer Predictor",
     embedding_dim = 256,   # hf_embedding_dim
     window_size = 7,       # total sequence length (3 before, 1 center, 3 after)
-    batch_size = 2048,
-    epochs = 4,
+    batch_size = 1024,
+    epochs = 6,
     lr = 0.001,          # learning rate for the optimizer
     preprocessed = f'{DATASET_ROOT}/{DATASET_PREFIX}',
     working = f'{WORKING_ROOT}/{DATASET_PREFIX}',
     modelname = f'{WORKING_ROOT}/{DATASET_VERSION}_hf.pt',
     train = True,
-    hf_layers = 2,       # number of transformer layers
+    hf_layers = 3,       # number of transformer layers
     hf_heads = 8,        # number of attention heads
     hf_pretrained_model = None  # set to a string like "bert-base-uncased" to load a pretrained model; otherwise, build from scratch
 )
@@ -489,21 +489,23 @@ if False:
 
 
 ### HF MODEL ####
-model = HFPredictor(
-    num_embeddings=len(vocab),
-    context_words=params.window_size,            # 7 tokens total
-    hf_embedding_dim=params.embedding_dim,        # 256
-    hf_layers=params.hf_layers,                   # e.g., 2 transformer layers
-    hf_heads=params.hf_heads,                     # e.g., 8 attention heads
-    hf_pretrained_model=params.hf_pretrained_model  # None or e.g., "bert-base-uncased"
-).to(device)
+if True:
+    model = HFPredictor(
+        num_embeddings=len(vocab),
+        context_words=params.window_size,            # 7 tokens total
+        hf_embedding_dim=params.embedding_dim,        # 256
+        hf_layers=params.hf_layers,                   # e.g., 2 transformer layers
+        hf_heads=params.hf_heads,                     # e.g., 8 attention heads
+        hf_pretrained_model=params.hf_pretrained_model  # None or e.g., "bert-base-uncased"
+    ).to(device)
 
 print(model)
 for name, param in model.named_parameters():
     print(f'{name:20} {param.numel()} {list(param.shape)}')
 print(f'TOTAL                {sum(p.numel() for p in model.parameters())}')
 
-optimizer = torch.optim.Adam(model.parameters())
+# optimizer = torch.optim.Adam(model.parameters())
+optimizer = torch.optim.AdamW(model.parameters(), lr=params.lr, weight_decay=0.01)
 criterion = nn.CrossEntropyLoss(reduction='sum')
 
 train_accuracy = []
@@ -538,7 +540,8 @@ end_time = time.time() # End timing
 training_time = end_time - start_time # Calculate training time
 
 # Save model
-torch.save(model.state_dict(), params.modelname)
+try: torch.save(model.state_dict(), params.model_name)
+except: pass
 
 # 'El Periodico' test dataset
 valid_x_df = pd.read_csv(f'{COMPETITION_ROOT}/x_test.csv')
